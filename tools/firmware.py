@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+""":"
+exec python3 "$0" "$@"
+"""
 """Firmware build policy, profile validator, and metadata helper for CleanPadavan-AC2100.
 
 Modified to allow custom components (Shadowsocks Plus, Xray, Dropbear SSH, etc.)
