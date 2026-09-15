@@ -63,7 +63,6 @@ jobs:
       - name: Bypass CleanPadavan Policy & Check Scripts
         run: |
           echo "=== 绕过仓库自带的 Clean 选项白名单阻断 ==="
-          # 清理校验逻辑，避免自定义代理插件导致 CI 报错中断
           for script in scripts/validate-policy.sh scripts/check-policy.sh scripts/verify-reproducibility.sh; do
             if [ -f "$script" ]; then
               echo '#!/bin/bash' > "$script"
@@ -90,10 +89,8 @@ jobs:
           mkdir -p /tmp/xray_unpack
           unzip -o /tmp/xray.zip -d /tmp/xray_unpack
 
-          # 使用 UPX 进行最高压缩比处理（减小~60%体积以便塞入ROM）
           upx --ultra-brute /tmp/xray_unpack/xray || upx --best --lzma /tmp/xray_unpack/xray
           
-          # 部署至构建树
           cp -f /tmp/xray_unpack/xray "$SS_BIN_DIR/xray"
           cp -f /tmp/xray_unpack/xray "$ROMFS_DIR/usr/bin/xray"
           chmod +x "$ROMFS_DIR/usr/bin/xray"
@@ -107,13 +104,8 @@ jobs:
 
           echo "=== 4. 固化 Go 防 OOM 限制至全局环境变量 (/etc/profile) ==="
           PROFILE_FILE="$ROMFS_DIR/etc/profile"
-          cat << 'EOF' >> "$PROFILE_FILE"
-
-# === Xray / Go Runtime 防爆内存与规则定位配置 ===
-export GOMEMLIMIT=45MiB
-export GOGC=20
-export XRAY_LOCATION_ASSET=/usr/share/xray
-EOF
+          mkdir -p "$(dirname "$PROFILE_FILE")"
+          printf "\n# === Xray / Go Runtime 防爆内存与规则定位配置 ===\nexport GOMEMLIMIT=45MiB\nexport GOGC=20\nexport XRAY_LOCATION_ASSET=/usr/share/xray\n" >> "$PROFILE_FILE"
 
           echo "=== 5. 写入底层系统脚本默认模板 ==="
           DEFAULTS_C="trunk/user/shared/defaults.c"
@@ -123,10 +115,9 @@ EOF
 
           SS_START_SH="trunk/user/shadowsocks/scripts/shadowsocks.sh"
           if [ -f "$SS_START_SH" ]; then
-            sed -i '2i export GOMEMLIMIT=45MiB\nexport GOGC=20\nexport XRAY_LOCATION_ASSET=/usr/share/xray' "$SS_START_SH"
+            sed -i '2i export GOMEMLIMIT=45MiB\nexport GOGC=20\nexport XRAY_LOCATION_ASSET=/usr/share/xray' "$SS_START_SH" || true
           fi
 
-          # 清理临时下载解压文件
           rm -rf /tmp/xray*
 
       - name: Build Firmware (Default Mode)
@@ -138,7 +129,6 @@ EOF
       - name: Organize Artifacts
         run: |
           mkdir -p dist_release
-          # 收集生成的 .trx 固件和哈希校验和
           find dist/ trunk/images/ -type f \( -name "*.trx" -o -name "SHA256SUMS" -o -name "*.manifest" \) -exec cp {} dist_release/ \; 2>/dev/null || true
 
       - name: Upload Firmware Artifacts
