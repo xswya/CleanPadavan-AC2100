@@ -70,7 +70,6 @@ jobs:
               chmod +x "$script"
             fi
           done
-
       - name: Inject Pre-compiled Xray, Full GeoData and OOM Scripts
         run: |
           set -e
@@ -83,31 +82,34 @@ jobs:
           mkdir -p "$ROMFS_DIR/usr/share/xray"
           mkdir -p "$ROMFS_DIR/etc"
 
-          echo "=== 2. 拉取 Xray MIPSLE 核心并使用 UPX 压缩 ==="
+          echo "=== 2. 拉取 Xray 官方发布包 (Xray-linux-mips32le.zip) ==="
           XRAY_VER="v1.8.24"
-          curl -sL "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VER}/Xray-linux-mipsle-softfloat.zip" -o /tmp/xray.zip
+          # 修正正确的官方压缩包名称，并加 -f 确保下载失败立即中断
+          curl -sSLf "https://github.com/XTLS/Xray-core/releases/download/${XRAY_VER}/Xray-linux-mips32le.zip" -o /tmp/xray.zip
+          
           mkdir -p /tmp/xray_unpack
           unzip -o /tmp/xray.zip -d /tmp/xray_unpack
 
+          echo "=== 3. 使用 UPX 进行极限压缩 ==="
           upx --ultra-brute /tmp/xray_unpack/xray || upx --best --lzma /tmp/xray_unpack/xray
           
+          # 部署 Xray 可执行文件
           cp -f /tmp/xray_unpack/xray "$SS_BIN_DIR/xray"
           cp -f /tmp/xray_unpack/xray "$ROMFS_DIR/usr/bin/xray"
           chmod +x "$ROMFS_DIR/usr/bin/xray"
 
-          echo "=== 3. 下载全量 geosite.dat 和 geoip.dat ==="
-          curl -sL "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat" -o "$SS_DATA_DIR/geosite.dat"
-          curl -sL "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat" -o "$SS_DATA_DIR/geoip.dat"
-          
-          cp -f "$SS_DATA_DIR/geosite.dat" "$ROMFS_DIR/usr/share/xray/geosite.dat"
-          cp -f "$SS_DATA_DIR/geoip.dat" "$ROMFS_DIR/usr/share/xray/geoip.dat"
+          echo "=== 4. 提取压缩包内自带的全量 geosite.dat 和 geoip.dat ==="
+          cp -f /tmp/xray_unpack/geosite.dat "$SS_DATA_DIR/geosite.dat"
+          cp -f /tmp/xray_unpack/geoip.dat "$SS_DATA_DIR/geoip.dat"
+          cp -f /tmp/xray_unpack/geosite.dat "$ROMFS_DIR/usr/share/xray/geosite.dat"
+          cp -f /tmp/xray_unpack/geoip.dat "$ROMFS_DIR/usr/share/xray/geoip.dat"
 
-          echo "=== 4. 固化 Go 防 OOM 限制至全局环境变量 (/etc/profile) ==="
+          echo "=== 5. 固化 Go 防 OOM 限制至全局环境变量 (/etc/profile) ==="
           PROFILE_FILE="$ROMFS_DIR/etc/profile"
           mkdir -p "$(dirname "$PROFILE_FILE")"
           printf "\n# === Xray / Go Runtime 防爆内存与规则定位配置 ===\nexport GOMEMLIMIT=45MiB\nexport GOGC=20\nexport XRAY_LOCATION_ASSET=/usr/share/xray\n" >> "$PROFILE_FILE"
 
-          echo "=== 5. 写入底层系统脚本默认模板 ==="
+          echo "=== 6. 写入底层系统脚本默认模板 ==="
           DEFAULTS_C="trunk/user/shared/defaults.c"
           if [ -f "$DEFAULTS_C" ]; then
             sed -i '/PostFirewallRules\[\]/a "export GOMEMLIMIT=45MiB\\n" \\\n"export GOGC=20\\n" \\\n"export XRAY_LOCATION_ASSET=/usr/share/xray\\n" \\' "$DEFAULTS_C" || true
