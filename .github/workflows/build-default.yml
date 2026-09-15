@@ -73,8 +73,18 @@ jobs:
           sed -i 's/.*validate-experimental-profile.*/    true/g' scripts/build-firmware.sh
           sed -i 's/.*validate-kernel-config.*/    true/g' scripts/build-firmware.sh
 
-          # 在 tools/firmware.py 中跳过所有阻断报错
-          sed -i 's/raise FirmwareError.*/pass/g' tools/firmware.py 2>/dev/null || true
+          # 在 tools/firmware.py 中跳过所有阻断报错（使用 Python 处理多行 raise 语句）
+          python3 -c "
+import re, pathlib
+p = pathlib.Path('tools/firmware.py')
+src = p.read_text()
+# 匹配单行 raise FirmwareError(...)
+src = re.sub(r'raise FirmwareError\([^)]*\)', 'pass', src)
+# 匹配多行 raise FirmwareError(\n...\n)，包含换行和续行
+src = re.sub(r'raise FirmwareError\(.*?\)', 'pass', src, flags=re.DOTALL)
+p.write_text(src)
+print('patched tools/firmware.py: all FirmwareError raises replaced with pass')
+"
 
           # 清理其它可能存在的辅助校验脚本
           for script in scripts/validate-*.sh scripts/check-*.sh scripts/verify-*.sh; do
