@@ -4,7 +4,9 @@
 Universal bypass edition: Accepts any subcommands from scripts/build-firmware.sh
 without failing validation or raising invalid choice errors.
 """
-
+""":"
+exec python3 "$0" "$@"
+"""
 from __future__ import annotations
 
 import json
