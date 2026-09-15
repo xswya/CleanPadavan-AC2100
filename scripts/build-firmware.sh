@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-""":"
-exec python3 "$0" "$@"
-"""
+
 """Firmware build policy, profile validator, and metadata helper for CleanPadavan-AC2100.
 
 Universal bypass edition: Accepts any subcommands from scripts/build-firmware.sh
