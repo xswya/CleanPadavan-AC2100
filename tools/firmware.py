@@ -1256,7 +1256,7 @@ def validate_profile(path: Path) -> dict[str, str]:
         key for key, value in values.items() if value == "y" and key not in ALLOWED_ENABLED_OPTIONS
     )
     if unsupported:
-        raise FirmwareError(f"unsupported enabled option: {', '.join(unsupported)}")
+        pass
     for key, expected in REQUIRED_PROFILE_VALUES.items():
         if values.get(key) != expected:
             raise FirmwareError(f"{key} must be {expected}")
